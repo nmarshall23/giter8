@@ -213,7 +213,11 @@ object G8Helpers {
       }
       else  {
         out.getParentFile.mkdirs()
-        if (G8.verbatim(out, parameters))
+        
+        val fileExt = out.getName().split('.').last
+        if ( fileExt == "zip" || fileExt == "jar") 
+          FileUtils.copyFile(in, out)
+        else if (G8.verbatim(out, parameters))
           FileUtils.copyFile(in, out)
         else {
           catching(classOf[MalformedInputException]).opt {
