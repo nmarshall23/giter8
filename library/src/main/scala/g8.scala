@@ -42,15 +42,18 @@ object G8 {
   }
 
   def verbatim(file: File, parameters: Map[String,String]): Boolean =
-    parameters.get("verbatim") map { s => globMatch(file, s.split(' ').toSeq) } getOrElse {false}
+    parameters.get("verbatim") map { s => globMatch(file, s.split(' ').toSeq) } getOrElse { false }
+    
   private def globMatch(file: File, patterns: Seq[String]): Boolean =
     patterns exists { globRegex(_).findFirstIn(file.getName).isDefined }
+  
   private def globRegex(pattern: String) = "^%s$".format(pattern flatMap {
     case '*' => """.*"""
     case '?' => """."""
     case '.' => """\."""
     case x => x.toString
   }).r
+  
   def expandPath(relative: String, toPath: File, parameters: Map[String,String]): File = {
     val fileParams = Map(parameters.toSeq map {
       case (k, v) if k == "package" => (k, v.replaceAll("""\.""", System.getProperty("file.separator") match {
@@ -122,7 +125,7 @@ object G8Helpers {
   private def getVisibleFiles = getFiles(!_.isHidden) _
 
   /**
-  * Extract params, template files, and scaffolding folder based on the conventionnal project structure
+  * Extract params, template files, and scaffolding folder based on the conventional project structure
   */
   def fetchInfo(f: File, tmplFolder: Option[String], scaffoldFolder: Option[String]) = {
     import java.io.FileInputStream

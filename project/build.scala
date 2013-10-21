@@ -6,7 +6,7 @@ object Builds extends sbt.Build {
   import sbtbuildinfo.Plugin._
   import conscript.Harness.conscriptSettings
 
-  val g8version = "0.6.0"
+  val g8version = "0.6.0-nm"
   
   val typesafeRepo = "Typesafe repo" at "http://repo.typesafe.com/typesafe/repo/"
   lazy val buildSettings = Defaults.defaultSettings ++ lsSettings ++ Seq(
@@ -15,6 +15,7 @@ object Builds extends sbt.Build {
     scalaVersion := "2.9.1",
     libraryDependencies ++= Seq(
       "org.clapper" % "scalasti_2.9.1" % "0.5.8",
+      "org.scalatest" %% "scalatest" % "1.9.2" % "test",
       ("jline" % "jline" % "1.0" force)
     ),
     publishArtifact in (Compile, packageBin) := true,
