@@ -181,6 +181,61 @@ object G8Helpers {
 
   private def relativize(in: File, from: File) = from.toURI().relativize(in.toURI).getPath
 
+  /**
+   * Checks if out file exists. 
+   * If this is a scaffoldingActions, 
+   * 	asks you want to append, override or skip.
+   *  
+   */
+  private def writeHelperIsExistingScaffoldingAction(out:File, isScaffolding: Boolean):Option[Boolean] = {
+    if (out.exists && isScaffolding) {
+      println(out.getCanonicalPath + " already exists")
+      print("do you want to append, override or skip existing file? [O/a/s] ")
+      Console.readLine match {
+        case a if a == "a" => Some(true)
+        case a if a == "o" || a == "" => Some(false)
+        case _ => None
+      }
+    } else None
+  }
+  
+  /**
+   * Process each file.
+   * 	Ether copying verbatim or applying template.
+   */
+  private def writeHelperCopyFile(in:File, out:File, parameters: Map[String,String], existingScaffoldingAction:Option[Boolean] ) {
+    import java.nio.charset.MalformedInputException
+
+    if (G8.verbatim(out, parameters))
+      //Copies file verbatim
+      FileUtils.copyFile(in, out)
+    else {
+      //Copies file applying parameters
+      catching(classOf[MalformedInputException]).opt {
+        Some(G8.write(out, FileUtils.readFileToString(in, UTF_8), parameters, append = existingScaffoldingAction.getOrElse(false)))
+      }.getOrElse {
+        if (existingScaffoldingAction.getOrElse(false)) {
+          val existing = FileUtils.readFileToString(in, UTF_8)
+          FileUtils.write(out, existing, UTF_8, true)
+        } else {
+          FileUtils.copyFile(in, out)
+        }
+      }
+    }
+  }
+  
+  /**
+   * Transforms a list of templates, to input template and output file location.
+   * Then passes that to function F. 
+   */
+  private def writeHelperApplyTemplates(templates: Iterable[File], tmpl: File, base: File, parameters: Map[String,String])(f:PartialFunction[(File,File),Unit]) {
+    templates.map{ in =>
+      val name =  relativize(in, tmpl)
+      val out = G8.expandPath(name, base, parameters)
+      (in, out)
+    }.foreach { f(_) }
+  }
+  
   def write(tmpl: File,
             templates: Iterable[File],
             parameters: Map[String,String],
@@ -188,23 +243,13 @@ object G8Helpers {
             isScaffolding: Boolean,
             forceOverwrite: Boolean) = {
 
-    import java.nio.charset.MalformedInputException
+    
     val renderer = new StringRenderer
 
-    templates.map{ in =>
-      val name =  relativize(in, tmpl)
-      val out = G8.expandPath(name, base, parameters)
-      (in, out)
-    }.foreach { case (in, out) =>
-      val existingScaffoldingAction = if (out.exists && isScaffolding) {
-          println(out.getCanonicalPath+" already exists") 
-          print("do you want to append, override or skip existing file? [O/a/s] ")
-          Console.readLine match {
-            case a if a == "a"  => Some(true)
-            case a if a == "o" || a == ""  => Some(false)
-            case _ => None
-          }
-        } else None
+    
+    writeHelperApplyTemplates(templates, tmpl, base, parameters){
+     case (in, out) =>
+      val existingScaffoldingAction = writeHelperIsExistingScaffoldingAction(out:File, isScaffolding: Boolean)
 
       if (out.exists && 
           existingScaffoldingAction.isDefined == false &&
@@ -213,23 +258,11 @@ object G8Helpers {
       }
       else  {
         out.getParentFile.mkdirs()
-        if (G8.verbatim(out, parameters))
-          FileUtils.copyFile(in, out)
-        else {
-          catching(classOf[MalformedInputException]).opt {
-            Some(G8.write(out, FileUtils.readFileToString(in, UTF_8), parameters, append = existingScaffoldingAction.getOrElse(false)))
-          }.getOrElse {
-            if (existingScaffoldingAction.getOrElse(false)) {
-              val existing = FileUtils.readFileToString(in, UTF_8)
-              FileUtils.write(out, existing, UTF_8, true)
-            } else {
-              FileUtils.copyFile(in, out)
-            }
-          }
-        }
-        if (in.canExecute) {
+   	    writeHelperCopyFile(in, out, parameters, existingScaffoldingAction)
+    	
+   	    if (in.canExecute) {
           out.setExecutable(true)
-        }
+        }  
       }
     }
 
